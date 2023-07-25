@@ -1,9 +1,8 @@
 import sys
-import time
 
 from ParcheesiDialecto import ParcheesiDialecto
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QWidget, QLineEdit, QComboBox
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QLineEdit, QComboBox
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from random import randint
 import sqlite3
@@ -27,37 +26,38 @@ class CrowGame(QMainWindow):
         self.setWindowTitle('White Crow Passage')
         self.setFixedSize(800, 650)
         self.mapC = []
-        self.mapNames = ["-", "assets/classic1.png", "assets/eternityRun1.png", "assets/cicles1.png", "assets/portalGame.png"]
+        self.mapNames = ["-", "assets/classic1.png", "assets/eternityRun1.png", "assets/cicles1.png",
+                         "assets/portalGame.png"]
         self.members = ["игрок", "игрок", "игрок", "игрок"]
 
-        self.HowTo = self.customization(QLabel(self), rect=(200, 400, 500, 400),
+        self.rules_text = self.customization(QLabel(self), rect=(200, 400, 500, 400),
                                         text='Расслабьтесь, обязательно позовите друзей\nПо очереди кидайте кости\nпобедит тот, кто первый доведёт все 3 фишки до финиша',
                                         font_size=12)
-        self.HowTo.hide()
-        self.welcomlabel = self.customization(QLabel(self), rect=(450, 230, 350, 91),
-                                              text='Белая ворона большая редкость в природе\nкто знает, куда вас может привести эта птица',
-                                              font_size=12)
+        self.rules_text.hide()
+        self.welcome_text = self.customization(QLabel(self), rect=(450, 230, 350, 91),
+                                               text='Белая ворона большая редкость в природе\nкто знает, куда вас может привести эта птица',
+                                               font_size=12)
 
-        self.startButton = self.customization(QtWidgets.QPushButton(self), rect=(120, 160, 221, 61), text="Старт",
-                                              font_size=24)
-        self.trainingButton = self.customization(QtWidgets.QPushButton(self), rect=(120, 230, 221, 51),
-                                                 text="Как играть?", font_size=18)
-        self.exitButton = self.customization(QtWidgets.QPushButton(self), rect=(120, 290, 221, 61), text="Выход",
-                                             font_size=24)
+        self.start_btn = self.customization(QtWidgets.QPushButton(self), rect=(120, 160, 221, 61), text="Старт",
+                                            font_size=24)
+        self.rules_btn = self.customization(QtWidgets.QPushButton(self), rect=(120, 230, 221, 51),
+                                            text="Как играть?", font_size=18)
+        self.exit_btn = self.customization(QtWidgets.QPushButton(self), rect=(120, 290, 221, 61), text="Выход",
+                                           font_size=24)
 
-        self.continueBtn = self.customization(QPushButton(self), rect=(200, 200, 400, 120), text="Продолжить игру",
-                                              font_size=18)
+        self.continue_btn = self.customization(QPushButton(self), rect=(200, 200, 400, 120), text="Продолжить игру",
+                                               font_size=18)
 
-        self.newGame = self.customization(QtWidgets.QPushButton(self), rect=(200, 230, 400, 120), text="Новая игра",
-                                          font_size=18)
-        self.newGame.hide()
-        self.continueBtn.hide()
-        self.chooseLabel = self.customization(QLabel(self), rect=(200, 5, 670, 100), text="      Куда отправимся?",
-                                              font_size=24)
-        self.chooseLabel.hide()
+        self.new_game_btn = self.customization(QtWidgets.QPushButton(self), rect=(200, 230, 400, 120), text="Новая игра",
+                                               font_size=18)
+        self.new_game_btn.hide()
+        self.continue_btn.hide()
+        self.map_pick_text = self.customization(QLabel(self), rect=(200, 5, 670, 100), text="      Куда отправимся?",
+                                                font_size=24)
+        self.map_pick_text.hide()
 
-        self.crowPicture = self.customization(QLabel(self), rect=(505, 0, 295, 249))
-        self.crowPicture.setPixmap(QPixmap("assets/whiteCrow.png"))
+        self.crow_menu_pic = self.customization(QLabel(self), rect=(505, 0, 295, 249))
+        self.crow_menu_pic.setPixmap(QPixmap("assets/whiteCrow.png"))
         self.miniClassic = QLabel(self)
         self.miniClassic.hide()
 
@@ -149,11 +149,38 @@ class CrowGame(QMainWindow):
         self.gameButtons = [self.GoChip1, self.GoChip2, self.GoChip3, self.skipTurn, self.rollTheDice, self.PlayerTurn]
         for i in self.gameButtons:
             i.hide()
+        self.way_pick_script = [[self.start_btn,
+                                 self.exit_btn,
+                                 self.rules_btn,
+                                 self.crow_menu_pic,
+                                 self.welcome_text,
+                                 self.rules_text],
+                                [self.new_game_btn,
+                              self.menuButton]]
+        self.back_to_menu_script = [[
+            self.new_game_btn,
+            self.menuButton,
+            self.map_pick_text,
+            self.desc,
+            self.minimap, *self.test, *self.cBtns, *self.ready, *self.combo_boxes], [self.start_btn,
+                                                                                     self.exit_btn,
+                                                                                     self.rules_btn,
+                                                                                     self.crow_menu_pic,
+                                                                                     self.welcome_text]]
+        self.map_pick_script = [[self.new_game_btn,
+                                 self.continue_btn,
+                                 ], [self.map_pick_text,
+                                     self.desc,
+                                     self.minimap,
+                                     self.miniBtn,
+                                     *self.test,
+                                     *self.cBtns]]
+        self.members_pick_script = [[*self.test, *self.cBtns, self.minimap], [*self.ready, *self.combo_boxes]]
         self.load_mp3(self.diceSounds[randint(0, 2)])
-        self.exitButton.clicked.connect(self.appExit)
-        self.menuButton.clicked.connect(self.inMenu)
-        self.startButton.clicked.connect(self.chooseOrContinue)
-        self.newGame.clicked.connect(self.gameNew)
+        self.exit_btn.clicked.connect(self.app_exit)
+        self.menuButton.clicked.connect(self.back_to_menu)
+        self.start_btn.clicked.connect(self.way_pick)
+        self.new_game_btn.clicked.connect(self.map_pick)
         self.rollTheDice.clicked.connect(self.player.play)
         self.rollTheDice.clicked.connect(self.roll)
         self.GoChip1.clicked.connect(self.chipN1)
@@ -168,7 +195,7 @@ class CrowGame(QMainWindow):
         self.cBtns[2].clicked.connect(self.map3)
         self.cBtns[3].clicked.connect(self.map4)
         self.readyButton.clicked.connect(self.mapCheck)
-        self.trainingButton.clicked.connect(self.rules)
+        self.rules_btn.clicked.connect(self.rules_show)
 
     def customization(self, label, rect=(0, 0, 0, 0), text='nonactive', font_size=-1):
         if font_size != -1:
@@ -214,63 +241,37 @@ class CrowGame(QMainWindow):
         else:
             self.name_input4.setReadOnly(False)
 
-    def rules(self):
-        self.HowTo.show()
+    def rules_show(self):
+        self.rules_text.show()
 
-    def appExit(self):
+    def app_exit(self):
         sys.exit(app.exec())
 
-    def chooseOrContinue(self):
-        self.startButton.hide()
-        self.exitButton.hide()
-        self.trainingButton.hide()
-        self.crowPicture.hide()
-        self.welcomlabel.hide()
-        self.newGame.show()
-        self.menuButton.show()
-        self.HowTo.hide()
-
-    def inMenu(self):
-        self.startButton.show()
-        self.exitButton.show()
-        self.trainingButton.show()
-        self.crowPicture.show()
-        self.newGame.hide()
-        self.menuButton.hide()
-        self.chooseLabel.hide()
-        self.desc.hide()
-        self.minimap.hide()
-        self.welcomlabel.show()
-        self.chooseLabel.setText("      Куда отправимся?")
-        for i in self.test:
+    def way_pick(self):
+        for i in self.way_pick_script[0]:
             i.hide()
-        for i in self.cBtns:
-            i.hide()
-        for i in self.ready:
-            i.hide()
-        for i in self.combo_boxes:
-            i.hide()
-
-    def gameNew(self):
-        self.newGame.hide()
-        self.continueBtn.hide()
-        self.chooseLabel.show()
-        self.desc.show()
-        self.minimap.show()
-        self.miniBtn.show()
-        for i in self.test:
-            i.show()
-        for i in self.cBtns:
+        for i in self.way_pick_script[1]:
             i.show()
 
-    def createGame(self):
-        pd = ParcheesiDialecto()
+    def back_to_menu(self):
+        for i in self.back_to_menu_script[0]:
+            i.hide()
+        for i in self.back_to_menu_script[1]:
+            i.show()
+        self.map_pick_text.setText("      Куда отправимся?")
 
+    def map_pick(self):
+        for i in self.map_pick_script[0]:
+            i.hide()
+        for i in self.map_pick_script[1]:
+            i.show()
+
+    def create_game(self):
         for i in self.combo_boxes:
             i.hide()
         for i in self.ready:
             i.hide()
-        self.chooseLabel.hide()
+        self.map_pick_text.hide()
         self.menuButton.hide()
         self.background2 = QLabel(self)
         self.background2.setPixmap(QPixmap("classicBackground.png"))
@@ -369,31 +370,26 @@ class CrowGame(QMainWindow):
 
     def map1(self):
         self.nMap = 1
-        self.nNames()
+        self.members_pick()
 
     def map2(self):
         self.nMap = 2
-        self.nNames()
+        self.members_pick()
 
     def map3(self):
         self.nMap = 3
-        self.nNames()
+        self.members_pick()
 
     def map4(self):
         self.nMap = 4
-        self.nNames()
+        self.members_pick()
 
-    def nNames(self):
-        for i in self.test:
+    def members_pick(self):
+        for i in self.members_pick_script[0]:
             i.hide()
-        for i in self.cBtns:
-            i.hide()
-        self.minimap.hide()
-        for i in self.ready:
+        for i in self.members_pick_script[1]:
             i.show()
-        self.chooseLabel.setText("Введите имена\n(не более 12 симв.)")
-        for i in self.combo_boxes:
-            i.show()
+        self.map_pick_text.setText("Введите имена\n(не более 12 симв.)")
 
     def mapCheck(self):
         names = ""
@@ -403,9 +399,9 @@ class CrowGame(QMainWindow):
                 names += colors[i]
         if names:
             msg = "Некорректные ники у\n" + names[:-2]
-            self.chooseLabel.setText(msg)
+            self.map_pick_text.setText(msg)
         else:
-            self.createGame()
+            self.create_game()
 
     def load_mp3(self, filename):
         self.media = QtCore.QUrl.fromLocalFile(filename)
