@@ -6,6 +6,7 @@ class ParcheesiDialecto:
                  total_cycles=1,
                  auto_start_positions=True):
         self.chips_quantity = chips_quantity
+        self.members_quantity = 0
         self.board_len = board_len
         self.total_cycles = total_cycles
         self.players_info = {
@@ -24,6 +25,7 @@ class ParcheesiDialecto:
         if auto_start_positions:
             for i in range(4):
                 if self.players_info[i]['allowed']:
+                    self.members_quantity += 1
                     for j in range(self.chips_quantity):
                         self.players_info[i][j] = [-1, 0]
                     self.players_info[i]['start_position'] = self.board_len // 4 * i
@@ -87,7 +89,7 @@ class ParcheesiDialecto:
                 chip_val = self.kill_check(self.players_info[player]['start_position'], player=player)
                 if chip_val:
                     self.chip_kill(chip_val[1], chip_val[0])
-                self.players_info[player][chip_number][0] = 0
+                self.players_info[player][chip_number][0] = self.players_info[player]['start_position']
 
                 self.chip_activate(chip_number, player)
             else:
@@ -142,4 +144,3 @@ class ParcheesiDialecto:
                     if self.players_info[i][j][0] == predict_position:
                         return (i, j)
         return False
-
