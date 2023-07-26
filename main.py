@@ -407,7 +407,7 @@ class CrowGame(QMainWindow):
         self.yp = 0
 
     def turn(self, picked_chip):
-        if self.pd.turn_check(picked_chip, self.current_dice)
+        if self.pd.turn_check(picked_chip, self.current_dice):
             for i in self.chipCommands:
                 i.setEnabled(False)
             self.rollTheDice.setEnabled(True)
