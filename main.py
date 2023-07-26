@@ -26,13 +26,14 @@ class CrowGame(QMainWindow):
         self.setWindowTitle('White Crow Passage')
         self.setFixedSize(800, 650)
         self.mapC = []
+        self.current_dice = 0
         self.mapNames = ["-", "assets/classic1.png", "assets/eternityRun1.png", "assets/cicles1.png",
                          "assets/portalGame.png"]
         self.members = ["игрок", "игрок", "игрок", "игрок"]
 
         self.rules_text = self.customization(QLabel(self), rect=(200, 400, 500, 400),
-                                        text='Расслабьтесь, обязательно позовите друзей\nПо очереди кидайте кости\nпобедит тот, кто первый доведёт все 3 фишки до финиша',
-                                        font_size=12)
+                                             text='Расслабьтесь, обязательно позовите друзей\nПо очереди кидайте кости\nпобедит тот, кто первый доведёт все 3 фишки до финиша',
+                                             font_size=12)
         self.rules_text.hide()
         self.welcome_text = self.customization(QLabel(self), rect=(450, 230, 350, 91),
                                                text='Белая ворона большая редкость в природе\nкто знает, куда вас может привести эта птица',
@@ -48,7 +49,8 @@ class CrowGame(QMainWindow):
         self.continue_btn = self.customization(QPushButton(self), rect=(200, 200, 400, 120), text="Продолжить игру",
                                                font_size=18)
 
-        self.new_game_btn = self.customization(QtWidgets.QPushButton(self), rect=(200, 230, 400, 120), text="Новая игра",
+        self.new_game_btn = self.customization(QtWidgets.QPushButton(self), rect=(200, 230, 400, 120),
+                                               text="Новая игра",
                                                font_size=18)
         self.new_game_btn.hide()
         self.continue_btn.hide()
@@ -111,8 +113,7 @@ class CrowGame(QMainWindow):
             i.hide()
         for i in self.combo_boxes:
             i.hide()
-        self.cNumber = 0
-        self.turn = 0
+        self.picked_chip = 0
         self.cubics = [0, 0]
         self.dice1 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
         self.dice1.setPixmap(QPixmap("diceR1.png"))
@@ -156,7 +157,7 @@ class CrowGame(QMainWindow):
                                  self.welcome_text,
                                  self.rules_text],
                                 [self.new_game_btn,
-                              self.menuButton]]
+                                 self.menuButton]]
         self.back_to_menu_script = [[
             self.new_game_btn,
             self.menuButton,
@@ -182,13 +183,10 @@ class CrowGame(QMainWindow):
         self.start_btn.clicked.connect(self.way_pick)
         self.new_game_btn.clicked.connect(self.map_pick)
         self.rollTheDice.clicked.connect(self.player.play)
-        self.rollTheDice.clicked.connect(self.roll)
+        self.rollTheDice.clicked.connect(self.dice_roll)
         self.GoChip1.clicked.connect(self.chipN1)
-        self.GoChip1.clicked.connect(self.goChip)
         self.GoChip2.clicked.connect(self.chipN2)
-        self.GoChip2.clicked.connect(self.goChip)
         self.GoChip3.clicked.connect(self.chipN3)
-        self.GoChip3.clicked.connect(self.goChip)
         self.skipTurn.clicked.connect(self.tskip)
         self.cBtns[0].clicked.connect(self.map1)
         self.cBtns[1].clicked.connect(self.map2)
@@ -266,11 +264,61 @@ class CrowGame(QMainWindow):
         for i in self.map_pick_script[1]:
             i.show()
 
+    def map1(self):
+        self.nMap = 1
+        self.members_pick()
+
+    def map2(self):
+        self.nMap = 2
+        self.members_pick()
+
+    def map3(self):
+        self.nMap = 3
+        self.members_pick()
+
+    def map4(self):
+        self.nMap = 4
+        self.members_pick()
+
+    def members_pick(self):
+        for i in self.members_pick_script[0]:
+            i.hide()
+        for i in self.members_pick_script[1]:
+            i.show()
+        self.map_pick_text.setText("Введите имена\n(не более 12 симв.)")
+
+    def mapCheck(self):
+        names = ""
+        colors = ["Красного, ", "Синего, ", "Зелёного, ", "Жёлтого, "]
+        for i in range(4):
+            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0:
+                names += colors[i]
+        if names:
+            msg = "Некорректные ники у\n" + names[:-2]
+            self.map_pick_text.setText(msg)
+        else:
+            self.create_game()
+
     def create_game(self):
         for i in self.combo_boxes:
             i.hide()
         for i in self.ready:
             i.hide()
+        members_init = []
+        for i in self.members:
+            if i == 'игрок':
+                members_init.append(True)
+            else:
+                members_init.append(False)
+        self.map_coords = []
+        for i in result:
+            if i[1] == 'end':
+                break
+            x = i[1].split(':')
+            x[0], x[1] = int(x[0]), int(x[1])
+            self.map_coords.append(x)
+        self.pd = ParcheesiDialecto(members_init[0], members_init[1], members_init[2], members_init[3],
+                                    board_len=len(self.map_coords))
         self.map_pick_text.hide()
         self.menuButton.hide()
         self.background2 = QLabel(self)
@@ -332,6 +380,10 @@ class CrowGame(QMainWindow):
         self.cYellow3.setPixmap(QPixmap("assets/chipY3.png"))
         chip_list = [self.cRed1, self.cRed2, self.cRed3, self.cBlue1, self.cBlue2, self.cBlue3, self.cGreen1,
                      self.cGreen2, self.cGreen3, self.cYellow1, self.cYellow2, self.cYellow3]
+        self.chip_list = [[self.cRed1, self.cRed2, self.cRed3], [self.cBlue1, self.cBlue2, self.cBlue3], [self.cGreen1,
+                                                                                                          self.cGreen2,
+                                                                                                          self.cGreen3],
+                          [self.cYellow1, self.cYellow2, self.cYellow3]]
         for i in chip_list:
             i.hide()
         self.win = QLabel(self)
@@ -353,69 +405,43 @@ class CrowGame(QMainWindow):
         self.bp = 0
         self.gp = 0
         self.yp = 0
-        self.cBlue1.show()
 
-        """self.winner = {"red": self.rp, "blue": self.bp, "green": self.gp, "yellow": self.yp}
-        self.chipsVis = {"red": (self.cRed1, self.cRed2, self.cRed3),
-                         "blue": (self.cBlue1, self.cBlue2, self.cBlue3),
-                         "green": (self.cGreen1, self.cGreen2, self.cGreen3),
-                         "yellow": (self.cYellow1, self.cYellow2, self.cYellow3)}
-        self.mapLen = len(self.mapC)
-        self.mapEntity = [self.ChipR1, self.ChipR2, self.ChipR3,
-                          self.ChipB1, self.ChipB2, self.ChipB3,
-                          self.ChipG1, self.ChipG2, self.ChipG3,
-                          self.ChipY1, self.ChipY2, self.ChipY3]
-        self.PlayerTurn.setText(
-            "Ход игрока " + self.playersDict[self.turnColor]["name"] + "\nиз команды: " + self.turnColor)"""
+    def turn(self, picked_chip):
+        if self.pd.turn_check(picked_chip, self.current_dice)
+            for i in self.chipCommands:
+                i.setEnabled(False)
+            self.rollTheDice.setEnabled(True)
+            self.skipTurn.setEnabled(False)
+            self.pd.turn(picked_chip, self.current_dice)
+            print(self.pd.players_info[self.pd.current_turn])
+            self.pd.turn_skip()
+            self.blit()
 
-    def map1(self):
-        self.nMap = 1
-        self.members_pick()
-
-    def map2(self):
-        self.nMap = 2
-        self.members_pick()
-
-    def map3(self):
-        self.nMap = 3
-        self.members_pick()
-
-    def map4(self):
-        self.nMap = 4
-        self.members_pick()
-
-    def members_pick(self):
-        for i in self.members_pick_script[0]:
-            i.hide()
-        for i in self.members_pick_script[1]:
-            i.show()
-        self.map_pick_text.setText("Введите имена\n(не более 12 симв.)")
-
-    def mapCheck(self):
-        names = ""
-        colors = ["Красного, ", "Синего, ", "Зелёного, ", "Жёлтого, "]
+    def blit(self):
         for i in range(4):
-            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0:
-                names += colors[i]
-        if names:
-            msg = "Некорректные ники у\n" + names[:-2]
-            self.map_pick_text.setText(msg)
-        else:
-            self.create_game()
+            if self.pd.players_info[i]['allowed']:
+                for j in range(self.pd.chips_quantity):
+                    if self.pd.players_info[i][j][0] != -1:
+                        self.chip_list[i][j].show()
+                        self.chip_list[i][j].move(*self.map_coords[self.pd.players_info[i][j][0]])
+                    else:
+                        self.chip_list[i][j].hide()
+
+
+
+    def dice_roll(self):
+        self.current_dice = self.pd.dice_roll()
+        self.GoChip1.setEnabled(True)
+        self.GoChip2.setEnabled(True)
+        self.GoChip3.setEnabled(True)
+        self.rollTheDice.setEnabled(False)
+        self.skipTurn.setEnabled(True)
 
     def load_mp3(self, filename):
         self.media = QtCore.QUrl.fromLocalFile(filename)
         content = QtMultimedia.QMediaContent(self.media)
         self.player = QtMultimedia.QMediaPlayer()
         self.player.setMedia(content)
-
-    def roll(self):
-        print(f'random: {1}')
-        self.GoChip1.setEnabled(True)
-        self.GoChip2.setEnabled(True)
-        self.GoChip3.setEnabled(True)
-        self.rollTheDice.setEnabled(False)
-        self.skipTurn.setEnabled(True)
 
     def goChip(self):
         print('removed')
@@ -428,13 +454,13 @@ class CrowGame(QMainWindow):
         print('removed')
 
     def chipN1(self):
-        self.cNumber = 1
+        self.turn(0)
 
     def chipN2(self):
-        self.cNumber = 2
+        self.turn(1)
 
     def chipN3(self):
-        self.cNumber = 3
+        self.turn(2)
 
 
 if __name__ == '__main__':

@@ -110,7 +110,6 @@ class ParcheesiDialecto:
             if self.finish_check(chip_number, 1, player):
                 self.chip_finish(chip_number, player)
             self.winner_check(player)
-            self.turn_skip()
 
     def turn_check(self, chip_number, steps, player=-1):
         if player < 0:
