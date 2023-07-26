@@ -5,6 +5,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QLineEdit, QComboBox
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from random import randint
+from json import load, dump
 import sqlite3
 
 SCREEN_SIZE = [800, 600]
@@ -27,6 +28,7 @@ class CrowGame(QMainWindow):
         self.setFixedSize(800, 650)
         self.mapC = []
         self.current_dice = 0
+        self.session_status = False
         self.mapNames = ["-", "assets/classic1.png", "assets/eternityRun1.png", "assets/cicles1.png",
                          "assets/portalGame.png"]
         self.members = ["игрок", "игрок", "игрок", "игрок"]
@@ -46,10 +48,10 @@ class CrowGame(QMainWindow):
         self.exit_btn = self.customization(QtWidgets.QPushButton(self), rect=(120, 290, 221, 61), text="Выход",
                                            font_size=24)
 
-        self.continue_btn = self.customization(QPushButton(self), rect=(200, 200, 400, 120), text="Продолжить игру",
+        self.continue_btn = self.customization(QPushButton(self), rect=(200, 300, 400, 120), text="Продолжить игру",
                                                font_size=18)
 
-        self.new_game_btn = self.customization(QtWidgets.QPushButton(self), rect=(200, 230, 400, 120),
+        self.new_game_btn = self.customization(QtWidgets.QPushButton(self), rect=(200, 130, 400, 120),
                                                text="Новая игра",
                                                font_size=18)
         self.new_game_btn.hide()
@@ -157,9 +159,11 @@ class CrowGame(QMainWindow):
                                  self.welcome_text,
                                  self.rules_text],
                                 [self.new_game_btn,
+                                 self.continue_btn,
                                  self.menuButton]]
         self.back_to_menu_script = [[
             self.new_game_btn,
+            self.continue_btn,
             self.menuButton,
             self.map_pick_text,
             self.desc,
@@ -182,6 +186,7 @@ class CrowGame(QMainWindow):
         self.menuButton.clicked.connect(self.back_to_menu)
         self.start_btn.clicked.connect(self.way_pick)
         self.new_game_btn.clicked.connect(self.map_pick)
+        self.continue_btn.clicked.connect(self.continue_session)
         self.rollTheDice.clicked.connect(self.player.play)
         self.rollTheDice.clicked.connect(self.dice_roll)
         self.GoChip1.clicked.connect(self.chipN1)
@@ -194,6 +199,18 @@ class CrowGame(QMainWindow):
         self.cBtns[3].clicked.connect(self.map4)
         self.readyButton.clicked.connect(self.mapCheck)
         self.rules_btn.clicked.connect(self.rules_show)
+
+    def closeEvent(self, event):
+        if self.session_status:
+            save = {'players_info': self.pd.players_info,
+                    'chips_quantity': self.pd.chips_quantity,
+                    'members_quantity': self.pd.members_quantity,
+                    'board_len': self.pd.board_len,
+                    'total_cycles': self.pd.total_cycles,
+                    'current_turn': self.pd.current_turn,
+                    'picked_map': self.nMap}
+            with open("data.json", "w") as fh:
+                dump(save, fh)
 
     def customization(self, label, rect=(0, 0, 0, 0), text='nonactive', font_size=-1):
         if font_size != -1:
@@ -299,26 +316,55 @@ class CrowGame(QMainWindow):
         else:
             self.create_game()
 
-    def create_game(self):
+    def continue_session(self):
+        with open("data.json", "r") as fh:
+            save = load(fh)
+        self.create_game(save)
+
+    def create_game(self, save=None):
         for i in self.combo_boxes:
             i.hide()
         for i in self.ready:
             i.hide()
-        members_init = []
-        for i in self.members:
-            if i == 'игрок':
-                members_init.append(True)
-            else:
-                members_init.append(False)
-        self.map_coords = []
-        for i in result:
-            if i[1] == 'end':
-                break
-            x = i[1].split(':')
-            x[0], x[1] = int(x[0]), int(x[1])
-            self.map_coords.append(x)
-        self.pd = ParcheesiDialecto(members_init[0], members_init[1], members_init[2], members_init[3],
-                                    board_len=len(self.map_coords))
+        if save:
+            for i in self.way_pick_script[1]:
+                i.hide()
+            self.nMap = save['picked_map']
+            self.map_coords = []
+            for i in result:
+                if i[self.nMap] == 'end':
+                    break
+                x = i[self.nMap].split(':')
+                x[0], x[1] = int(x[0]), int(x[1])
+                self.map_coords.append(x)
+            self.pd = ParcheesiDialecto(board_len=len(self.map_coords))
+            self.pd.players_info = save['players_info']
+            self.pd.chips_quantity = save['chips_quantity']
+            self.pd.members_quantity = save['members_quantity']
+            self.pd.total_cycles = save['total_cycles']
+            self.pd.current_turn = save['current_turn']
+            for i in range(4):
+                self.pd.players_info[i] = self.pd.players_info.pop(str(i))
+                for j in range(self.pd.chips_quantity):
+                    self.pd.players_info[i][j] = self.pd.players_info[i].pop(str(j))
+            print(self.pd.players_info)
+        else:
+            members_init = []
+            for i in self.members:
+                if i == 'игрок':
+                    members_init.append(True)
+                else:
+                    members_init.append(False)
+            self.map_coords = []
+            for i in result:
+                if i[self.nMap] == 'end':
+                    break
+                x = i[self.nMap].split(':')
+                x[0], x[1] = int(x[0]), int(x[1])
+                self.map_coords.append(x)
+            self.pd = ParcheesiDialecto(members_init[0], members_init[1], members_init[2], members_init[3],
+                                        board_len=len(self.map_coords))
+        self.session_status = True
         self.map_pick_text.hide()
         self.menuButton.hide()
         self.background2 = QLabel(self)
@@ -405,6 +451,7 @@ class CrowGame(QMainWindow):
         self.bp = 0
         self.gp = 0
         self.yp = 0
+        self.blit()
 
     def turn(self, picked_chip):
         if self.pd.turn_check(picked_chip, self.current_dice):
