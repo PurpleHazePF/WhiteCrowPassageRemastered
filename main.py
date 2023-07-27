@@ -118,19 +118,19 @@ class CrowGame(QMainWindow):
         self.picked_chip = 0
         self.cubics = [0, 0]
         self.dice1 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice1.setPixmap(QPixmap("diceR1.png"))
+        self.dice1.setPixmap(QPixmap("assets/diceR1.png"))
         self.dice2 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice2.setPixmap(QPixmap("diceR2.png"))
+        self.dice2.setPixmap(QPixmap("assets/diceR2.png"))
         self.dice3 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice3.setPixmap(QPixmap("diceR3.png"))
+        self.dice3.setPixmap(QPixmap("assets/diceR3.png"))
         self.dice4 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice4.setPixmap(QPixmap("diceR4.png"))
+        self.dice4.setPixmap(QPixmap("assets/diceR4.png"))
         self.dice5 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice5.setPixmap(QPixmap("diceR5.png"))
+        self.dice5.setPixmap(QPixmap("assets/diceR5.png"))
         self.dice6 = self.customization(QLabel(self), rect=(0, 560, 80, 80))
-        self.dice6.setPixmap(QPixmap("diceR6.png"))
+        self.dice6.setPixmap(QPixmap("assets/diceR6.png"))
         self.dices = [self.dice1, self.dice2, self.dice3, self.dice4, self.dice5, self.dice6]
-        self.diceSounds = ["diceRoll1.mp3", "diceRoll2.mp3", "diceRoll4.mp3", ]
+        self.diceSounds = ["assets/diceRoll1.mp3", "assets/diceRoll2.mp3", "assets/diceRoll4.mp3", ]
         for i in self.dices:
             i.hide()
         font = QtGui.QFont()
@@ -192,7 +192,7 @@ class CrowGame(QMainWindow):
         self.GoChip1.clicked.connect(self.chipN1)
         self.GoChip2.clicked.connect(self.chipN2)
         self.GoChip3.clicked.connect(self.chipN3)
-        self.skipTurn.clicked.connect(self.tskip)
+        self.skipTurn.clicked.connect(self.turn_skip)
         self.cBtns[0].clicked.connect(self.map1)
         self.cBtns[1].clicked.connect(self.map2)
         self.cBtns[2].clicked.connect(self.map3)
@@ -202,13 +202,16 @@ class CrowGame(QMainWindow):
 
     def closeEvent(self, event):
         if self.session_status:
-            save = {'players_info': self.pd.players_info,
-                    'chips_quantity': self.pd.chips_quantity,
-                    'members_quantity': self.pd.members_quantity,
-                    'board_len': self.pd.board_len,
-                    'total_cycles': self.pd.total_cycles,
-                    'current_turn': self.pd.current_turn,
-                    'picked_map': self.nMap}
+            if self.pd.winner:
+                save = {}
+            else:
+                save = {'players_info': self.pd.players_info,
+                        'chips_quantity': self.pd.chips_quantity,
+                        'members_quantity': self.pd.members_quantity,
+                        'board_len': self.pd.board_len,
+                        'total_cycles': self.pd.total_cycles,
+                        'current_turn': self.pd.current_turn,
+                        'picked_map': self.nMap}
             with open("data.json", "w") as fh:
                 dump(save, fh)
 
@@ -225,7 +228,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status1(self, text):
         self.members[0] = text
-        if self.members[0] != 'игрок':
+        if self.members[0] == 'отключено':
             self.name_input.setReadOnly(True)
             self.name_input.setText('')
         else:
@@ -234,7 +237,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status2(self, text):
         self.members[1] = text
-        if self.members[1] != 'игрок':
+        if self.members[1] == 'отключено':
             self.name_input2.setReadOnly(True)
             self.name_input2.setText('')
         else:
@@ -242,7 +245,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status3(self, text):
         self.members[2] = text
-        if self.members[2] != 'игрок':
+        if self.members[2] == 'отключено':
             self.name_input3.setReadOnly(True)
             self.name_input3.setText('')
         else:
@@ -250,7 +253,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status4(self, text):
         self.members[3] = text
-        if self.members[3] != 'игрок':
+        if self.members[3] == 'отключено':
             self.name_input4.setReadOnly(True)
             self.name_input4.setText('')
         else:
@@ -308,7 +311,7 @@ class CrowGame(QMainWindow):
         names = ""
         colors = ["Красного, ", "Синего, ", "Зелёного, ", "Жёлтого, "]
         for i in range(4):
-            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0:
+            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0 and self.members[i] != 'отключено':
                 names += colors[i]
         if names:
             msg = "Некорректные ники у\n" + names[:-2]
@@ -319,7 +322,8 @@ class CrowGame(QMainWindow):
     def continue_session(self):
         with open("data.json", "r") as fh:
             save = load(fh)
-        self.create_game(save)
+        if save:
+            self.create_game(save)
 
     def create_game(self, save=None):
         for i in self.combo_boxes:
@@ -351,7 +355,7 @@ class CrowGame(QMainWindow):
         else:
             members_init = []
             for i in self.members:
-                if i == 'игрок':
+                if i != 'отключено':
                     members_init.append(True)
                 else:
                     members_init.append(False)
@@ -433,7 +437,7 @@ class CrowGame(QMainWindow):
         for i in chip_list:
             i.hide()
         self.win = QLabel(self)
-        self.win.setPixmap(QPixmap("winner.png"))
+        self.win.setPixmap(QPixmap("assets/winner.png"))
         self.win.resize(800, 500)
         self.win.move(0, 0)
         self.win.hide()
@@ -463,6 +467,13 @@ class CrowGame(QMainWindow):
             print(self.pd.players_info[self.pd.current_turn])
             self.pd.turn_skip()
             self.blit()
+            if self.pd.winner:
+                for i in self.gameButtons:
+                    i.setEnabled(False)
+                self.win.show()
+                self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
+                self.tWin.show()
+
 
     def blit(self):
         for i in range(4):
@@ -478,6 +489,9 @@ class CrowGame(QMainWindow):
 
     def dice_roll(self):
         self.current_dice = self.pd.dice_roll()
+        for i in self.dices:
+            i.hide()
+        self.dices[self.current_dice - 1].show()
         self.GoChip1.setEnabled(True)
         self.GoChip2.setEnabled(True)
         self.GoChip3.setEnabled(True)
@@ -493,12 +507,12 @@ class CrowGame(QMainWindow):
     def goChip(self):
         print('removed')
 
-    def tskip(self):
+    def turn_skip(self):
         for i in self.chipCommands:
             i.setEnabled(False)
         self.rollTheDice.setEnabled(True)
         self.skipTurn.setEnabled(False)
-        print('removed')
+        self.pd.turn_skip()
 
     def chipN1(self):
         self.turn(0)

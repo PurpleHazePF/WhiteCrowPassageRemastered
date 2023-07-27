@@ -1,4 +1,5 @@
 from random import randint
+from pprint import pprint
 
 
 class ParcheesiDialecto:
@@ -52,6 +53,7 @@ class ParcheesiDialecto:
         self.players_info[player]['active_chips'].remove(chip_number)
         self.players_info[player]['nonactive_chips'].append(chip_number)
         self.players_info[player][chip_number][0] = -1
+        self.players_info[player][chip_number][1] = 0
 
     def turn_skip(self):
         while True:
@@ -117,18 +119,18 @@ class ParcheesiDialecto:
         if chip_number in self.players_info[player]['finished_chips']:
             return False
         chips = [*range(self.chips_quantity)]
-        chips.remove(1)
+        chips.remove(chip_number)
         if chip_number in self.players_info[player]['nonactive_chips']:
             predict_position = self.players_info[player]['start_position']
         else:
             if self.players_info[player][chip_number][0] + steps >= self.board_len:
-                predict_position = self.players_info[player][chip_number][0] = (self.players_info[player][
-                                                                                    chip_number][
-                                                                                    0] + steps) % self.board_len
+                predict_position = (self.players_info[player][
+                                        chip_number][
+                                        0] + steps) % self.board_len
             else:
                 predict_position = self.players_info[player][chip_number][0] + steps
         for i in chips:
-            if self.players_info[player][i] == predict_position:
+            if self.players_info[player][i][0] == predict_position:
                 return False
         return True
 
