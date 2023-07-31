@@ -111,9 +111,12 @@ class CrowGame(QMainWindow):
         self.miniChips = self.customization(QLabel(self), rect=(0, 200, 800, 40))
         self.miniChips.setPixmap(QPixmap("assets/nChips.png"))
         self.save_dataset_btn = self.customization(QCheckBox("Save turn\nto dataset", self),
-                                                      rect=(700, 600, 120, 40))
+                                                   rect=(700, 600, 120, 40))
         self.accuracy_info_btn = self.customization(QCheckBox("True", self),
-                                                      rect=(700, 550, 120, 40))
+                                                    rect=(700, 550, 120, 40))
+        if not self.testmode:
+            self.save_dataset_btn.hide()
+        self.accuracy_info_btn.hide()
 
         self.readyButton = self.customization(QPushButton(self), rect=(580, 530, 200, 100), text="Готово", font_size=14)
         self.ready = [self.name_input, self.name_input2, self.name_input3, self.name_input4, self.readyButton,
@@ -145,7 +148,7 @@ class CrowGame(QMainWindow):
         font.setPointSize(16)
         font.setBold(True)
         font.setWeight(75)
-        self.PlayerTurn = self.customization(QLabel(self), rect=(0, 470, 500, 120), font_size=24)
+        self.PlayerTurn = self.customization(QLabel(self), rect=(0, 470, 500, 120), font_size=16)
         self.PlayerMsg = self.customization(QLabel(self), rect=(10, 550, 400, 60), font_size=24)
         self.skipTurn = self.customization(QPushButton("Пропустить ход", self), rect=(530, 530, 110, 30))
         self.skipTurn.setEnabled(False)
@@ -195,7 +198,7 @@ class CrowGame(QMainWindow):
         self.start_btn.clicked.connect(self.way_pick)
         self.new_game_btn.clicked.connect(self.map_pick)
         self.continue_btn.clicked.connect(self.continue_session)
-        self.rollTheDice.clicked.connect(self.player.play)
+        #self.rollTheDice.clicked.connect(self.player.play)
         self.rollTheDice.clicked.connect(self.dice_roll)
         self.GoChip1.clicked.connect(self.chipN1)
         self.GoChip2.clicked.connect(self.chipN2)
@@ -247,6 +250,7 @@ class CrowGame(QMainWindow):
             self.accuracy = 1
         else:
             self.accuracy = 0
+
     def update_member_status1(self, text):
         self.members[0] = text
         if self.members[0] == 'отключено':
@@ -424,8 +428,8 @@ class CrowGame(QMainWindow):
         for i in range(self.playersCount):
             startPoint += pointLen
             self.queueOfPlayers[i]["endpoint"] = startPoint
-        self.turnColor = self.queueOfPlayers[self.turn]["color"]
-        self.PlayerTurn.setText("Ход игрока из команды: " + self.turnColor)"""
+        self.turnColor = self.queueOfPlayers[self.turn]["color"]"""
+        self.PlayerTurn.setText("Ход игрока из команды: " + self.pd.colors[self.pd.current_turn])
         self.cRed1 = self.customization(QLabel(self), rect=(0, 0, 50, 40))
         self.cRed1.setPixmap(QPixmap("assets/chipR1.png"))
         self.cRed2 = self.customization(QLabel(self), rect=(10, 0, 50, 40))
@@ -480,25 +484,30 @@ class CrowGame(QMainWindow):
         self.blit()
 
     def turn(self, picked_chip):
-        if self.dataset_check:
-            self.save_row('dataset.csv', picked_chip)
-            print('Вы записали ход')
-        else:
-            if self.pd.turn_check(picked_chip, self.current_dice):
-                for i in self.chipCommands:
+        if self.pd.turn_check(picked_chip, self.current_dice):
+            if self.dataset_check:
+                unpicked = [*range(self.pd.chips_quantity)]
+                unpicked.remove(picked_chip)
+                self.save_row('dataset.csv', picked_chip, 1)
+                for i in unpicked:
+                    self.save_row('dataset.csv', i, 0)
+                print('Вы записали ход')
+            for i in self.chipCommands:
+                i.setEnabled(False)
+            self.rollTheDice.setEnabled(True)
+            self.skipTurn.setEnabled(False)
+            self.pd.turn(picked_chip, self.current_dice)
+            print(self.pd.players_info[self.pd.current_turn])
+            self.pd.turn_skip()
+            self.blit()
+            self.PlayerTurn.setText("Ход игрока из команды: " + self.pd.colors[self.pd.current_turn])
+            if self.pd.winner:
+                for i in self.gameButtons:
                     i.setEnabled(False)
-                self.rollTheDice.setEnabled(True)
-                self.skipTurn.setEnabled(False)
-                self.pd.turn(picked_chip, self.current_dice)
-                print(self.pd.players_info[self.pd.current_turn])
-                self.pd.turn_skip()
-                self.blit()
-                if self.pd.winner:
-                    for i in self.gameButtons:
-                        i.setEnabled(False)
-                    self.win.show()
-                    self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
-                    self.tWin.show()
+                self.win.show()
+                self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
+                self.tWin.show()
+
 
     def blit(self):
         for i in range(4):
@@ -535,6 +544,10 @@ class CrowGame(QMainWindow):
             i.setEnabled(False)
         self.rollTheDice.setEnabled(True)
         self.skipTurn.setEnabled(False)
+        if self.dataset_check:
+            unpicked = [*range(self.pd.chips_quantity)]
+            for i in unpicked:
+                self.save_row('dataset.csv', i, 0)
         self.pd.turn_skip()
 
     def chipN1(self):
@@ -584,7 +597,7 @@ class CrowGame(QMainWindow):
                 positions.append(self.pd.players_info[i]['start_position'])
         return positions
 
-    def save_row(self, filename, chip_number):
+    def save_row(self, filename, chip_number, accuracy):
         tablet = pandas.read_csv(filename)
         tablet_columns = len(tablet.columns)
         if len(tablet) != 0:
@@ -598,7 +611,7 @@ class CrowGame(QMainWindow):
             test = []
             for i in range(tablet_columns):
                 test.append([])
-        d1 = {'decision': [*test[1], int(f'{chip_number}{self.pd.current_turn}{self.current_dice}')],
+        d1 = {'decision': [*test[1], int(f'{self.current_dice}{chip_number}{self.pd.current_turn}')],
               'chip_number': [*test[2], chip_number],
               'current_turn': [*test[3], self.pd.current_turn],
               'steps': [*test[4], self.current_dice],
@@ -606,7 +619,7 @@ class CrowGame(QMainWindow):
               'finished_chips': [*test[6], self.get_finished_chips()],
               'nonactive_chips': [*test[7], self.get_nonactive_chips()],
               'board': [*test[8], self.get_board_list()],
-              'accuracy': [*test[9], self.accuracy]}
+              'accuracy': [*test[9], accuracy]}
         df1 = pandas.DataFrame(d1)
         df2 = pandas.concat([df1], axis=1)
         df2.to_csv(filename, index=True)
