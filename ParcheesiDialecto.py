@@ -43,7 +43,6 @@ class ParcheesiDialecto:
             player = self.current_turn
         self.players_info[player]['active_chips'].append(chip_number)
         self.players_info[player]['nonactive_chips'].remove(chip_number)
-
     def chip_finish(self, chip_number, player=-1):
         self.players_info[player]['finished_chips'].append(chip_number)
         self.players_info[player]['active_chips'].remove(chip_number)

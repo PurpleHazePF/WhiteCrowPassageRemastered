@@ -2,11 +2,12 @@ import sys
 
 from ParcheesiDialecto import ParcheesiDialecto
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QLineEdit, QComboBox
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QLineEdit, QComboBox, QCheckBox
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from random import randint
 from json import load, dump
 import sqlite3
+import pandas
 
 SCREEN_SIZE = [800, 600]
 
@@ -23,11 +24,14 @@ class CrowGame(QMainWindow):
         self.initUI()
 
     def initUI(self):
+        self.testmode = True
         self.setGeometry(300, 200, *SCREEN_SIZE)
         self.setWindowTitle('White Crow Passage')
         self.setFixedSize(800, 650)
         self.mapC = []
         self.current_dice = 0
+        self.dataset_check = False
+        self.accuracy = 0
         self.session_status = False
         self.mapNames = ["-", "assets/classic1.png", "assets/eternityRun1.png", "assets/cicles1.png",
                          "assets/portalGame.png"]
@@ -106,6 +110,10 @@ class CrowGame(QMainWindow):
         self.combo_boxes = [self.combo_box1, self.combo_box2, self.combo_box3, self.combo_box4]
         self.miniChips = self.customization(QLabel(self), rect=(0, 200, 800, 40))
         self.miniChips.setPixmap(QPixmap("assets/nChips.png"))
+        self.save_dataset_btn = self.customization(QCheckBox("Save turn\nto dataset", self),
+                                                      rect=(700, 600, 120, 40))
+        self.accuracy_info_btn = self.customization(QCheckBox("True", self),
+                                                      rect=(700, 550, 120, 40))
 
         self.readyButton = self.customization(QPushButton(self), rect=(580, 530, 200, 100), text="Готово", font_size=14)
         self.ready = [self.name_input, self.name_input2, self.name_input3, self.name_input4, self.readyButton,
@@ -199,6 +207,8 @@ class CrowGame(QMainWindow):
         self.cBtns[3].clicked.connect(self.map4)
         self.readyButton.clicked.connect(self.mapCheck)
         self.rules_btn.clicked.connect(self.rules_show)
+        self.save_dataset_btn.stateChanged.connect(self.test_checkbox)
+        self.accuracy_info_btn.stateChanged.connect(self.accuracy_check)
 
     def closeEvent(self, event):
         if self.session_status:
@@ -226,6 +236,17 @@ class CrowGame(QMainWindow):
             label.setGeometry(QtCore.QRect(*rect))
         return label
 
+    def test_checkbox(self, data):
+        if data == 2:
+            self.dataset_check = True
+        else:
+            self.dataset_check = False
+
+    def accuracy_check(self, data):
+        if data == 2:
+            self.accuracy = 1
+        else:
+            self.accuracy = 0
     def update_member_status1(self, text):
         self.members[0] = text
         if self.members[0] == 'отключено':
@@ -311,7 +332,8 @@ class CrowGame(QMainWindow):
         names = ""
         colors = ["Красного, ", "Синего, ", "Зелёного, ", "Жёлтого, "]
         for i in range(4):
-            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0 and self.members[i] != 'отключено':
+            if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0 and self.members[
+                i] != 'отключено':
                 names += colors[i]
         if names:
             msg = "Некорректные ники у\n" + names[:-2]
@@ -458,22 +480,25 @@ class CrowGame(QMainWindow):
         self.blit()
 
     def turn(self, picked_chip):
-        if self.pd.turn_check(picked_chip, self.current_dice):
-            for i in self.chipCommands:
-                i.setEnabled(False)
-            self.rollTheDice.setEnabled(True)
-            self.skipTurn.setEnabled(False)
-            self.pd.turn(picked_chip, self.current_dice)
-            print(self.pd.players_info[self.pd.current_turn])
-            self.pd.turn_skip()
-            self.blit()
-            if self.pd.winner:
-                for i in self.gameButtons:
+        if self.dataset_check:
+            self.save_row('dataset.csv', picked_chip)
+            print('Вы записали ход')
+        else:
+            if self.pd.turn_check(picked_chip, self.current_dice):
+                for i in self.chipCommands:
                     i.setEnabled(False)
-                self.win.show()
-                self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
-                self.tWin.show()
-
+                self.rollTheDice.setEnabled(True)
+                self.skipTurn.setEnabled(False)
+                self.pd.turn(picked_chip, self.current_dice)
+                print(self.pd.players_info[self.pd.current_turn])
+                self.pd.turn_skip()
+                self.blit()
+                if self.pd.winner:
+                    for i in self.gameButtons:
+                        i.setEnabled(False)
+                    self.win.show()
+                    self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
+                    self.tWin.show()
 
     def blit(self):
         for i in range(4):
@@ -484,8 +509,6 @@ class CrowGame(QMainWindow):
                         self.chip_list[i][j].move(*self.map_coords[self.pd.players_info[i][j][0]])
                     else:
                         self.chip_list[i][j].hide()
-
-
 
     def dice_roll(self):
         self.current_dice = self.pd.dice_roll()
@@ -522,6 +545,71 @@ class CrowGame(QMainWindow):
 
     def chipN3(self):
         self.turn(2)
+
+    def get_board_list(self):
+        board = [0 for k in range(self.pd.board_len)]
+        for i in range(4):
+            if self.pd.players_info[i]['allowed']:
+                for j in range(self.pd.chips_quantity):
+                    if self.pd.players_info[i][j][0] != -1:
+                        board[self.pd.players_info[i][j][0]] = int(f'{i}{j}')
+        return board
+
+    def get_nonactive_chips(self):
+        chips = []
+        for i in range(4):
+            if self.pd.players_info[i]['allowed']:
+                chips_mini = self.pd.players_info[i]['nonactive_chips'].copy()
+                if len(chips_mini) != 0:
+                    for j in range(len(chips_mini)):
+                        chips_mini[j] = int(f'{i}{j}')
+                    chips.extend(chips_mini)
+        return chips
+
+    def get_finished_chips(self):
+        chips = []
+        for i in range(4):
+            if self.pd.players_info[i]['allowed']:
+                chips_mini = self.pd.players_info[i]['finished_chips'].copy()
+                if len(chips_mini) != 0:
+                    for j in range(len(chips_mini)):
+                        chips_mini[j] = int(f'{i}{j}')
+                    chips.extend(chips_mini)
+        return chips
+
+    def get_start_positons(self):
+        positions = []
+        for i in range(4):
+            if self.pd.players_info[i]['allowed']:
+                positions.append(self.pd.players_info[i]['start_position'])
+        return positions
+
+    def save_row(self, filename, chip_number):
+        tablet = pandas.read_csv(filename)
+        tablet_columns = len(tablet.columns)
+        if len(tablet) != 0:
+            test = []
+            for j in tablet:
+                cash = []
+                for i in tablet[j]:
+                    cash.append(i)
+                test.append(cash)
+        else:
+            test = []
+            for i in range(tablet_columns):
+                test.append([])
+        d1 = {'decision': [*test[1], int(f'{chip_number}{self.pd.current_turn}{self.current_dice}')],
+              'chip_number': [*test[2], chip_number],
+              'current_turn': [*test[3], self.pd.current_turn],
+              'steps': [*test[4], self.current_dice],
+              'start_positions': [*test[5], self.get_start_positons()],
+              'finished_chips': [*test[6], self.get_finished_chips()],
+              'nonactive_chips': [*test[7], self.get_nonactive_chips()],
+              'board': [*test[8], self.get_board_list()],
+              'accuracy': [*test[9], self.accuracy]}
+        df1 = pandas.DataFrame(d1)
+        df2 = pandas.concat([df1], axis=1)
+        df2.to_csv(filename, index=True)
 
 
 if __name__ == '__main__':
