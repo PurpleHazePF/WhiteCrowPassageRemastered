@@ -3,7 +3,8 @@ from pprint import pprint
 
 
 class ParcheesiDialecto:
-    def __init__(self, player0=True, player1=True, player2=True, player3=True, chips_quantity=3, board_len=48,
+    def __init__(self, player0=True, player1=True, player2=True, player3=True, bot0=False, bot1=False, bot2=False,
+                 bot3=False, chips_quantity=3, board_len=48,
                  total_cycles=1,
                  auto_start_positions=True):
         self.chips_quantity = chips_quantity
@@ -11,16 +12,16 @@ class ParcheesiDialecto:
         self.board_len = board_len
         self.total_cycles = total_cycles
         self.players_info = {
-            0: {'start_position': 0, 'allowed': player0, 'active_chips': [],
+            0: {'start_position': 0, 'allowed': player0, 'bot': bot0, 'active_chips': [],
                 'nonactive_chips': [*range(0, self.chips_quantity)],
                 'finished_chips': []},
-            1: {'start_position': 0, 'allowed': player1, 'active_chips': [],
+            1: {'start_position': 0, 'allowed': player1, 'bot': bot1, 'active_chips': [],
                 'nonactive_chips': [*range(0, self.chips_quantity)],
                 'finished_chips': []},
-            2: {'start_position': 0, 'allowed': player2, 'active_chips': [],
+            2: {'start_position': 0, 'allowed': player2, 'bot': bot2, 'active_chips': [],
                 'nonactive_chips': [*range(0, self.chips_quantity)],
                 'finished_chips': []},
-            3: {'start_position': 0, 'allowed': player3, 'active_chips': [],
+            3: {'start_position': 0, 'allowed': player3, 'bot': bot3, 'active_chips': [],
                 'nonactive_chips': [*range(0, self.chips_quantity)],
                 'finished_chips': []}}
         if auto_start_positions:
@@ -30,9 +31,12 @@ class ParcheesiDialecto:
                     for j in range(self.chips_quantity):
                         self.players_info[i][j] = [-1, 0]
                     self.players_info[i]['start_position'] = self.board_len // 4 * i
+        self.current_turn = 3
+        for i in range(3, -1, -1):
+            if self.players_info[i]['allowed']:
+                self.current_turn = i
         self.colors = ['red', 'blue', 'green', 'yellow']
         self.dice_val = 0
-        self.current_turn = 0
         self.winner = None
 
     def dice_roll(self):
@@ -43,6 +47,7 @@ class ParcheesiDialecto:
             player = self.current_turn
         self.players_info[player]['active_chips'].append(chip_number)
         self.players_info[player]['nonactive_chips'].remove(chip_number)
+
     def chip_finish(self, chip_number, player=-1):
         self.players_info[player]['finished_chips'].append(chip_number)
         self.players_info[player]['active_chips'].remove(chip_number)

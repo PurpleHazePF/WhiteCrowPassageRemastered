@@ -8,6 +8,8 @@ from random import randint
 from json import load, dump
 import sqlite3
 import pandas
+import pickle
+from PyQt5 import QtTest
 
 SCREEN_SIZE = [800, 600]
 
@@ -198,7 +200,7 @@ class CrowGame(QMainWindow):
         self.start_btn.clicked.connect(self.way_pick)
         self.new_game_btn.clicked.connect(self.map_pick)
         self.continue_btn.clicked.connect(self.continue_session)
-        #self.rollTheDice.clicked.connect(self.player.play)
+        self.rollTheDice.clicked.connect(self.player.play)
         self.rollTheDice.clicked.connect(self.dice_roll)
         self.GoChip1.clicked.connect(self.chipN1)
         self.GoChip2.clicked.connect(self.chipN2)
@@ -227,6 +229,11 @@ class CrowGame(QMainWindow):
                         'picked_map': self.nMap}
             with open("data.json", "w") as fh:
                 dump(save, fh)
+
+    def random_forest_init(self, model_name):
+        with open(model_name, 'rb') as file:
+            model = pickle.load(file)
+            return model
 
     def customization(self, label, rect=(0, 0, 0, 0), text='nonactive', font_size=-1):
         if font_size != -1:
@@ -337,7 +344,7 @@ class CrowGame(QMainWindow):
         colors = ["Красного, ", "Синего, ", "Зелёного, ", "Жёлтого, "]
         for i in range(4):
             if len(self.nicknames[i].text()) > 12 or len(self.nicknames[i].text()) == 0 and self.members[
-                i] != 'отключено':
+                i] == 'игрок':
                 names += colors[i]
         if names:
             msg = "Некорректные ники у\n" + names[:-2]
@@ -380,11 +387,16 @@ class CrowGame(QMainWindow):
             print(self.pd.players_info)
         else:
             members_init = []
+            bot_list = []
             for i in self.members:
                 if i != 'отключено':
                     members_init.append(True)
                 else:
                     members_init.append(False)
+                if i == 'бот':
+                    bot_list.append(True)
+                else:
+                    bot_list.append(False)
             self.map_coords = []
             for i in result:
                 if i[self.nMap] == 'end':
@@ -392,7 +404,8 @@ class CrowGame(QMainWindow):
                 x = i[self.nMap].split(':')
                 x[0], x[1] = int(x[0]), int(x[1])
                 self.map_coords.append(x)
-            self.pd = ParcheesiDialecto(members_init[0], members_init[1], members_init[2], members_init[3],
+            self.pd = ParcheesiDialecto(members_init[0], members_init[1], members_init[2], members_init[3], bot_list[0],
+                                        bot_list[1], bot_list[2], bot_list[3],
                                         board_len=len(self.map_coords))
         self.session_status = True
         self.map_pick_text.hide()
@@ -407,6 +420,9 @@ class CrowGame(QMainWindow):
         self.background.resize(800, 500)
         self.background.move(0, 0)
         self.background.show()
+        for i in range(4):
+            if self.pd.players_info[i]['bot']:
+                self.model = self.random_forest_init('random_forest_model.pkl')
         for i in self.gameButtons:
             i.show()
         for elem in result:
@@ -481,9 +497,11 @@ class CrowGame(QMainWindow):
         self.bp = 0
         self.gp = 0
         self.yp = 0
+        if self.pd.players_info[self.pd.current_turn]['bot']:
+            self.turn(self.bot_choice())
         self.blit()
 
-    def turn(self, picked_chip):
+    def turn(self, picked_chip, bot=False):
         if self.pd.turn_check(picked_chip, self.current_dice):
             if self.dataset_check:
                 unpicked = [*range(self.pd.chips_quantity)]
@@ -494,8 +512,9 @@ class CrowGame(QMainWindow):
                 print('Вы записали ход')
             for i in self.chipCommands:
                 i.setEnabled(False)
-            self.rollTheDice.setEnabled(True)
             self.skipTurn.setEnabled(False)
+            if bot:
+                self.bot_thinking()
             self.pd.turn(picked_chip, self.current_dice)
             print(self.pd.players_info[self.pd.current_turn])
             self.pd.turn_skip()
@@ -507,7 +526,38 @@ class CrowGame(QMainWindow):
                 self.win.show()
                 self.tWin.setText(f'ПОБЕДИТЕЛЬ: {self.nicknames[self.pd.winner].text()}')
                 self.tWin.show()
+            if self.pd.players_info[self.pd.current_turn]['bot']:
+                self.dice_roll(bot=True)
+                self.turn(self.bot_choice(), bot=True)
+            else:
+                self.rollTheDice.setEnabled(True)
 
+    def bot_choice(self):
+        data = []
+        for i in range(3):
+            data.append([int(f'{self.current_dice}{i}{self.pd.current_turn}'), *self.get_board_list()])
+            while True:
+                if len(data[i]) >= 53:
+                    break
+                data[i].append(-1)
+        data = pandas.DataFrame(data)
+        predictions = self.model.predict_proba(data)
+        choice = 0
+        for i in range(3):
+            if predictions[i][0] > choice and self.pd.turn_check(i, self.current_dice):
+                choice = i
+        return choice
+
+
+    def bot_thinking(self):
+        for i in range(5):
+            self.PlayerTurn.setText('Бот думает.')
+            QtTest.QTest.qWait(200)
+            self.PlayerTurn.setText('Бот думает..')
+            QtTest.QTest.qWait(200)
+            self.PlayerTurn.setText('Бот думает...')
+            QtTest.QTest.qWait(200)
+        self.PlayerTurn.setText('Бот сделал свой выбор')
 
     def blit(self):
         for i in range(4):
@@ -519,16 +569,17 @@ class CrowGame(QMainWindow):
                     else:
                         self.chip_list[i][j].hide()
 
-    def dice_roll(self):
+    def dice_roll(self, bot=False):
         self.current_dice = self.pd.dice_roll()
         for i in self.dices:
             i.hide()
         self.dices[self.current_dice - 1].show()
-        self.GoChip1.setEnabled(True)
-        self.GoChip2.setEnabled(True)
-        self.GoChip3.setEnabled(True)
-        self.rollTheDice.setEnabled(False)
-        self.skipTurn.setEnabled(True)
+        if not bot:
+            self.GoChip1.setEnabled(True)
+            self.GoChip2.setEnabled(True)
+            self.GoChip3.setEnabled(True)
+            self.rollTheDice.setEnabled(False)
+            self.skipTurn.setEnabled(True)
 
     def load_mp3(self, filename):
         self.media = QtCore.QUrl.fromLocalFile(filename)
