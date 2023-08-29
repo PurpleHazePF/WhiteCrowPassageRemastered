@@ -4,12 +4,14 @@ from ParcheesiDialecto import ParcheesiDialecto
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QPushButton, QLineEdit, QComboBox, QCheckBox
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
+from PyQt5.QtWinExtras import QtWin
 from random import randint
 from json import load, dump
 import sqlite3
 import pandas
 import pickle
 from PyQt5 import QtTest
+from sklearn.utils import shuffle
 
 SCREEN_SIZE = [800, 600]
 
@@ -26,6 +28,9 @@ class CrowGame(QMainWindow):
         self.initUI()
 
     def initUI(self):
+        myappid = 'mycompany.myproduct.subproduct.version'  # !!!
+        QtWin.setCurrentProcessExplicitAppUserModelID(myappid)
+
         self.testmode = True
         self.setGeometry(300, 200, *SCREEN_SIZE)
         self.setWindowTitle('White Crow Passage')
@@ -260,7 +265,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status1(self, text):
         self.members[0] = text
-        if self.members[0] == 'отключено':
+        if self.members[0] != 'игрок':
             self.name_input.setReadOnly(True)
             self.name_input.setText('')
         else:
@@ -269,7 +274,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status2(self, text):
         self.members[1] = text
-        if self.members[1] == 'отключено':
+        if self.members[1] != 'игрок':
             self.name_input2.setReadOnly(True)
             self.name_input2.setText('')
         else:
@@ -277,7 +282,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status3(self, text):
         self.members[2] = text
-        if self.members[2] == 'отключено':
+        if self.members[2] != 'игрок':
             self.name_input3.setReadOnly(True)
             self.name_input3.setText('')
         else:
@@ -285,7 +290,7 @@ class CrowGame(QMainWindow):
 
     def update_member_status4(self, text):
         self.members[3] = text
-        if self.members[3] == 'отключено':
+        if self.members[3] != 'игрок':
             self.name_input4.setReadOnly(True)
             self.name_input4.setText('')
         else:
@@ -498,7 +503,7 @@ class CrowGame(QMainWindow):
         self.gp = 0
         self.yp = 0
         if self.pd.players_info[self.pd.current_turn]['bot']:
-            self.turn(self.bot_choice())
+            self.turn(self.bot_choice(), bot=True)
         self.blit()
 
     def turn(self, picked_chip, bot=False):
@@ -516,7 +521,7 @@ class CrowGame(QMainWindow):
             if bot:
                 self.bot_thinking()
             self.pd.turn(picked_chip, self.current_dice)
-            print(self.pd.players_info[self.pd.current_turn])
+            #print(self.pd.players_info[self.pd.current_turn])
             self.pd.turn_skip()
             self.blit()
             self.PlayerTurn.setText("Ход игрока из команды: " + self.pd.colors[self.pd.current_turn])
@@ -540,12 +545,17 @@ class CrowGame(QMainWindow):
                 if len(data[i]) >= 53:
                     break
                 data[i].append(-1)
+        chips = [*range(3)]
+        #data = shuffle(data, random_state=1)
+        #chips = shuffle(chips, random_state=1)
         data = pandas.DataFrame(data)
         predictions = self.model.predict_proba(data)
         choice = 0
-        for i in range(3):
-            if predictions[i][0] > choice and self.pd.turn_check(i, self.current_dice):
+        proba = 0
+        for i in chips:
+            if predictions[i][0] > proba and self.pd.turn_check(i, self.current_dice):
                 choice = i
+                proba = predictions[i][0]
         return choice
 
 
@@ -593,13 +603,16 @@ class CrowGame(QMainWindow):
     def turn_skip(self):
         for i in self.chipCommands:
             i.setEnabled(False)
-        self.rollTheDice.setEnabled(True)
         self.skipTurn.setEnabled(False)
         if self.dataset_check:
             unpicked = [*range(self.pd.chips_quantity)]
             for i in unpicked:
                 self.save_row('dataset.csv', i, 0)
         self.pd.turn_skip()
+        if self.pd.players_info[self.pd.current_turn]['bot']:
+            self.turn(self.bot_choice(), bot=True)
+        else:
+            self.rollTheDice.setEnabled(True)
 
     def chipN1(self):
         self.turn(0)
@@ -678,6 +691,7 @@ class CrowGame(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setWindowIcon(QtGui.QIcon('assets/crow.ico'))
     ex = CrowGame()
     ex.show()
     sys.exit(app.exec())
